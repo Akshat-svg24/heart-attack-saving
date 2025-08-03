@@ -1,36 +1,38 @@
-
 import streamlit as st
 import numpy as np
-import pickle
+import joblib
 
 # Load model and scaler
-model = pickle.load(open("heart_model.pkl", "rb"))
-scaler = pickle.load(open("scaler.pkl", "rb"))
+model = joblib.load("heart_model.pkl")
+scaler = joblib.load("scaler.pkl")
 
-st.title("❤️ Heart Attack Risk Predictor")
-st.write("Enter your health details below:")
+st.title("Heart Attack Risk Predictor")
+st.markdown("Enter the following values to assess your risk:")
 
-# Input fields
-age = st.number_input("Age", 20, 100, 50)
-sex = st.selectbox("Sex", [1, 0], format_func=lambda x: "Male" if x == 1 else "Female")
-cp = st.selectbox("Chest Pain Type (0–3)", [0, 1, 2, 3])
-chol = st.number_input("Cholesterol (mg/dL)", 100, 600, 200)
-fbs = st.selectbox("Fasting Blood Sugar > 120 mg/dL", [0, 1])
-thalach = st.number_input("Maximum Heart Rate Achieved", 60, 210, 150)
+# Input features
+age = st.number_input("Age", min_value=1, max_value=120)
+sex = st.selectbox("Sex", [0, 1])  # 1 = male, 0 = female
+cp = st.selectbox("Chest Pain Type (0-3)", [0, 1, 2, 3])
+trestbps = st.number_input("Resting Blood Pressure (mm Hg)", min_value=80, max_value=200)
+chol = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=600)
+fbs = st.selectbox("Fasting Blood Sugar > 120 mg/dl", [0, 1])
+restecg = st.selectbox("Resting ECG results (0-2)", [0, 1, 2])
+thalach = st.number_input("Max Heart Rate Achieved", min_value=60, max_value=250)
 exang = st.selectbox("Exercise Induced Angina", [0, 1])
+oldpeak = st.number_input("ST Depression Induced", min_value=0.0, max_value=6.0, step=0.1)
+slope = st.selectbox("Slope of ST segment (0-2)", [0, 1, 2])
+ca = st.selectbox("Number of major vessels (0-3)", [0, 1, 2, 3])
+thal = st.selectbox("Thalassemia (1=normal, 2=fixed defect, 3=reversible defect)", [1, 2, 3])
 
-# Combine input
-features = np.array([[age, sex, cp, chol, fbs, thalach, exang]])
-scaled_input = scaler.transform(features)
+if st.button("Predict"):
+    input_data = np.array([[age, sex, cp, trestbps, chol, fbs, restecg,
+                            thalach, exang, oldpeak, slope, ca, thal]])
+    input_scaled = scaler.transform(input_data)
+    prediction = model.predict_proba(input_scaled)[0][1]
 
-# Prediction
-prediction = model.predict(scaled_input)[0]
-proba = model.predict_proba(scaled_input)[0][1]
-
-# Display
-st.subheader("Prediction Result:")
-st.write(f"Predicted Risk Score: {proba*100:.2f}%")
-if prediction == 1:
-    st.error("⚠️ High Risk of Heart Attack")
-else:
-    st.success("✅ Low Risk of Heart Attack")
+    if prediction >= 0.7:
+        st.error(f"High Risk ({prediction*100:.2f}%) – Please consult a doctor.")
+    elif prediction >= 0.4:
+        st.warning(f"Moderate Risk ({prediction*100:.2f}%) – Take precautions.")
+    else:
+        st.success(f"Low Risk ({prediction*100:.2f}%) – Keep maintaining a healthy lifestyle.")
